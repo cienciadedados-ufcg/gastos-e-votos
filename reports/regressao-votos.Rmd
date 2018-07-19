@@ -1,0 +1,222 @@
+---
+title: "$ e votos nas campanhas de 2014"
+output:
+    html_document:
+    df_print: paged
+theme: sandstone
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(viridis)
+
+library(broom)
+library(modelr)
+
+source(here::here("code/lib.R"))
+theme_set(theme_report())
+
+knitr::opts_chunk$set(tidy = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      echo = FALSE)
+
+paleta = c("#404E4D",
+           "#92DCE5",
+           "#938BA1",
+           "#2D3142",
+           "#F4743B")
+```
+
+```{r read}
+dados = read_projectdata()
+```
+
+```{r}
+dados %>% 
+    ggplot(aes(x = total_despesa)) + 
+    geom_histogram(bins = 30)
+
+dados %>% 
+    ggplot(aes(x = total_despesa)) + 
+    geom_histogram(bins = 30) + 
+    scale_x_log10()
+```
+
+```{r}
+dados %>% 
+    ggplot(aes(x = idade, y = votos_prop)) + 
+    geom_point(size = .5, alpha = .4) + 
+    scale_y_log10()
+```
+
+```{r}
+dados %>% 
+    ggplot(aes(x = sexo, y = votos)) + 
+    geom_boxplot() + 
+    scale_y_log10()
+```
+
+
+```{r}
+dados %>% 
+    ggplot(aes(x = total_despesa, y = votos)) + 
+    geom_point(size = .5) + 
+    scale_x_log10() + 
+    scale_y_log10()
+```
+
+```{r}
+dados %>% 
+    ggplot(aes(x = total_despesa, y = votos)) + 
+    geom_point(size = .5) + 
+    scale_x_log10() + 
+    scale_y_log10() + 
+    facet_wrap(~ UF)
+```
+
+```{r}
+dados = dados %>% 
+    mutate(votos_log = log10(votos), 
+           gastos_log = log10(total_despesa))
+```
+
+
+```{r}
+pb = dados %>% 
+    filter(UF == "PB") 
+    
+
+pb %>% 
+    ggplot() + 
+    aes(x = votos_log, y = gastos_log) + 
+    geom_point(size = 2, alpha = .6)
+```
+
+**ESCOLHA OS COEFICIENTES DA LINHA ABAIXO PARA ALCANÇAR O MELHOR FIT**
+
+```{r}
+pb %>% 
+    ggplot() + 
+    aes(y = votos_log, x = gastos_log) + 
+    geom_point(size = 2, alpha = .6) + 
+    geom_abline(slope = 0, 
+                intercept = 3, 
+                color = "darkorange")
+```
+
+E se os dados fossem de MT? 
+
+```{r}
+dados %>% 
+    filter(UF == "MT") %>% 
+    ggplot() + 
+    aes(y = votos_log, x = gastos_log) + 
+    geom_point(size = 2, alpha = .6) + 
+    geom_abline(slope = 0, 
+                intercept = 3, 
+                color = "darkorange")
+
+```
+
+## Usando o computador para achar a linha
+
+## Na PB
+
+O modelo
+
+```{r}
+modelo_pb = lm(votos_log ~ gastos_log, data = pb)
+
+tidy(modelo_pb)
+```
+
+Visualizar o modelo
+
+```{r}
+pb %>% 
+    add_predictions(model = modelo_pb) %>% 
+    ggplot(aes(x = gastos_log, y = votos_log)) + 
+    geom_point(alpha = 0.4) + 
+    geom_line(aes(y = pred), colour = "red")  
+```
+
+```{r}
+x = pb %>% 
+    add_residuals(model = modelo_pb) %>% 
+    ggplot(aes(x = gastos_log, y = resid, label = nome)) + 
+    geom_point(alpha = 0.4, size = 3) + 
+    geom_hline(yintercept = 0)
+
+x
+
+plotly::ggplotly(x)
+```
+
+
+A qualidade do ajuste (fit)
+
+```{r}
+glance(modelo_pb)
+```
+
+## E no MT? 
+
+```{r}
+
+```
+
+
+Ao final, você deve conseguir preencher o seguinte texto: 
+
+> Regressão linear (via mínimos quadrados ordinários) foi utilizada para analisar se <VarIndep1> tem uma associação (significativa -- se fosse inferência) com <VarDep>. Os resultados da regressão indicam que o modelo com preditor no formato <VarDep> = <XXX>.VarIndep1 + <Intercept> explica <XX,XX>% da variância da variável de resposta (R2 = <XX,XX>). <VarIndep1>, medida como/em [unidade ou escala] tem uma relação com <VarDep> (b = <YY>) tal que o aumento de 1 unidade de VarIndep1 produz uma mudança de xxx em <VarDep>.
+
+---
+
+# Múltiplas variáveis preditoras
+
+```{r}
+modelo_pb = lm(votos_log ~ gastos_log + sexo, data = pb)
+
+tidy(modelo_pb)
+```
+
+Visualizar o modelo
+
+```{r}
+pb %>% 
+    add_predictions(model = modelo_pb) %>% 
+    ggplot(aes(x = gastos_log, 
+               y = votos_log, 
+               group = sexo, 
+               color = sexo)) + 
+    geom_point(alpha = 0.4) + 
+    geom_line(aes(y = pred, color = sexo))  
+```
+
+```{r}
+x = pb %>% 
+    add_residuals(model = modelo_pb) %>% 
+    ggplot(aes(x = gastos_log, y = resid, label = nome)) + 
+    geom_point(alpha = 0.4, size = 3) + 
+    geom_hline(yintercept = 0)
+
+x
+
+plotly::ggplotly(x)
+```
+
+
+A qualidade do ajuste (fit)
+
+```{r}
+glance(modelo_pb)
+```
+
+## E em outro estado? 
+
+```{r}
+
+```
+
