@@ -1,0 +1,77 @@
+---
+title: "Fontes de $"
+output:
+    html_document:
+    df_print: paged
+theme: sandstone
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(viridis)
+
+library(broom)
+library(modelr)
+
+source(here::here("code/lib.R"))
+theme_set(theme_report())
+
+knitr::opts_chunk$set(tidy = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      echo = FALSE)
+
+paleta = c("#404E4D",
+           "#92DCE5",
+           "#938BA1",
+           "#2D3142",
+           "#F4743B")
+```
+
+```{r read}
+fontes_doacao = read_projectdata() %>%
+    filter(
+        prop_doacoes_pj <= 1,
+        prop_doacoes_pf <= 1,
+        prop_doacoes_partido <= 1,
+        prop_recursos_proprios <= 1
+    ) %>% 
+    mutate(votos_log = log10(votos), 
+           gastos_log = log10(total_despesa))
+
+```
+
+## Tipos de $
+
+```{r}
+fontes_doacao %>% 
+    ggplot(aes(x = prop_doacoes_pj)) + 
+    geom_histogram(bins = 50)
+
+fontes_doacao %>% 
+    ggplot(aes(x = prop_doacoes_pf)) + 
+    geom_histogram(bins = 50)
+
+fontes_doacao %>% 
+    ggplot(aes(x = prop_doacoes_partido)) + 
+    geom_histogram(bins = 50)
+```
+
+```{r}
+fontes_doacao %>% 
+    ggplot(aes(x = prop_doacoes_pj, y = votos_log)) + 
+    geom_point(size = .5) 
+```
+
+```{r}
+modelo = lm(
+    votos_log ~ total_despesa + prop_doacoes_pj + prop_doacoes_partido + prop_recursos_proprios, 
+    data = fontes_doacao
+)
+
+tidy(modelo, 
+     conf.int = T)
+
+```
+

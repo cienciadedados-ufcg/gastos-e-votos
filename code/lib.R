@@ -33,10 +33,28 @@ import_data <- function(){
                quantidade_doadores, 
                quantidade_despesas,
                recursos_de_pessoas_juridicas,
+               recursos_de_partidos,
+               recursos_de_pessoas_físicas, 
+               recursos_proprios,
                idade, 
                sexo, 
                grau
                ) %>% 
+        mutate_at(
+            vars(
+                recursos_de_pessoas_juridicas,
+                recursos_de_pessoas_físicas,
+                recursos_de_partidos,
+                recursos_proprios
+            ), 
+            function(x){if_else(is.na(x), 0, x)}
+        ) %>%
+        mutate(
+            prop_doacoes_pj = recursos_de_pessoas_juridicas / total_despesa,
+            prop_doacoes_pf = recursos_de_pessoas_físicas / total_despesa,
+            prop_doacoes_partido = recursos_de_partidos / total_despesa, 
+            prop_recursos_proprios = recursos_proprios / total_despesa
+        ) %>% 
         left_join(eleitorado, by = "UF") %>% 
         mutate(votos_prop = votos / total_votos_uf)
     
@@ -60,5 +78,5 @@ read_projectdata <- function(){
                  grau = col_character(),
                  total_votos_uf = col_integer(),
                  votos_prop = col_double()
-             ))
+             )) 
 }
