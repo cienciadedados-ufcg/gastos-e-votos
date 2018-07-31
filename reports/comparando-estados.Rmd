@@ -1,0 +1,145 @@
+---
+title: "Para post"
+output: html_notebook
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(viridis)
+
+library(broom)
+library(modelr)
+
+source(here::here("code/lib.R"))
+theme_set(theme_report())
+
+knitr::opts_chunk$set(tidy = FALSE,
+                      fig.width = 6,
+                      fig.height = 5,
+                      echo = FALSE)
+
+paleta = c("#404E4D",
+           "#92DCE5",
+           "#938BA1",
+           "#2D3142",
+           "#F4743B")
+```
+
+```{r read}
+dados = read_projectdata()
+```
+
+```{r}
+dados %>% 
+    select(UF, total_despesa, votos) %>% 
+    skimr::skim()
+
+dados = dados %>% filter(total_despesa >= 1000, votos >= 100)
+```
+
+```{r}
+modelos = dados %>% 
+    group_by(UF) %>% 
+    do(tidy(lm(log10(votos) ~ log10(total_despesa), 
+               data = .)))
+
+coeficientes = modelos %>% 
+    filter(term != "(Intercept)") %>% 
+    select(1:3) %>% 
+    spread(key = term, value = estimate)
+
+fits = modelos = dados %>% 
+    group_by(UF) %>% 
+    do(glance(lm(log10(votos) ~ log10(total_despesa), 
+               data = .)) %>% select(r.squared))
+
+fits = fits %>% 
+    left_join(coeficientes)
+
+```
+
+```{r}
+dados %>% 
+    ggplot(aes(x = total_despesa, y = votos)) + 
+    geom_point(size = .5) + 
+    scale_x_log10() +
+    scale_y_log10() +
+    NULL
+```
+
+
+```{r}
+# options(scipen = -999)
+dados %>% 
+    left_join(coeficientes, by = "UF") %>%
+    ggplot(aes(x = total_despesa, y = votos)) + 
+    geom_point(size = .5, color = "#404E4D", alpha = .4) + 
+    scale_x_log10(breaks = c(1e3, 1e5, 5e6), 
+                  labels = c("1k", "100k", "5M"), 
+                  minor_breaks = NULL) +
+    scale_y_log10(breaks = c(100, 1e3, 1e4, 1e5), 
+                  labels = c("100", "1k", "10k", "100k"), 
+                  minor_breaks = NULL) +
+    geom_smooth(method = "lm", 
+                se = F,
+                size = .7, 
+                color = "deeppink") +
+    facet_wrap(~ reorder(UF, -`log10(total_despesa)`)) +
+    # facet_wrap(~ UF) + 
+    geom_text(data = fits, 
+              aes(label = sprintf("coef=%.2f\nR2=%.2f", `log10(total_despesa)`, r.squared), 
+                  x = 6e6, 
+                  y = 5e2), 
+              hjust = "right", 
+              size = 2) + 
+    labs(
+        x = "Total de despesas da campanha (escala log)", 
+        y = "Votos (escala de log)", 
+        title = "Gasto na campanha e votos", 
+        subtitle = "UFs onde $ tem maior impacto primeiro"
+    )
+
+ggsave("relacao-ufs.png", width = 8, height = 6)
+```
+
+```{r}
+dados = dados %>% 
+    mutate(
+        despesas_log = log10(total_despesa), 
+        votos_log = log10(votos)
+    )
+modelo_se = lm(votos_log ~ despesas_log, 
+               data = dados %>% 
+                   filter(UF == "SE"))
+
+dados %>% 
+    filter(UF == "SE") %>% 
+    add_predictions(modelo_se) %>% 
+    mutate(previsto = 10**(pred)) %>% 
+    ggplot(aes(x = total_despesa)) + 
+    geom_line(aes(y = previsto)) + 
+    geom_point(aes(y = votos))
+```
+
+```{r}
+dados = dados %>% 
+    mutate(
+        despesas_log = log10(total_despesa), 
+        votos_log = log10(votos)
+    )
+modelo_se = lm(votos_log ~ despesas_log, 
+               data = dados %>% 
+                   filter(UF == "AP"))
+
+dados %>% 
+    filter(UF == "AP") %>% 
+    add_predictions(modelo_se) %>% 
+    mutate(previsto = 10**(pred)) %>% 
+    ggplot(aes(x = total_despesa)) + 
+    geom_line(aes(y = previsto)) + 
+    geom_point(aes(y = votos)) + 
+    scale_x_log10() + 
+    scale_y_log10()
+```
+
